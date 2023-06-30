@@ -14,15 +14,18 @@ interface OpenSea {
 }
 
 contract CyberSyndicate is ERC721A("CyberSyndicate", "CSE"), Ownable, ERC2981, DefaultOperatorFilterer, ONFT721ACore {
-    uint256 public maxMintAmount = 100;
-    uint256 public maxSupply = 3333;
-    uint256 public costPerNft = 70 * 1e18;
-    uint256 public addressLimit = 500;
+
+    uint256 public maxSupply = 5000;
+    uint256 public costPerNft = 0.015 * 1e18;
+    uint256 public addressLimit = 50;
     mapping(address => uint256) public addressMintedBalance;
     uint256 public nftsForOwner = 50;
     string public metadataFolderIpfsLink;
+    uint256 constant presaleSupply = 300;
     string constant baseExtension = ".json";
     uint256 public publicmintActiveTime = 1669568400;
+    uint256 public airDropAmount = 100;
+    uint256 public airdropCounter = 0;
    
     constructor(uint256 _minGasToTransferAndStore, address _lzEndpoint) ONFT721ACore(_minGasToTransferAndStore, _lzEndpoint) {
         _setDefaultRoyalty(msg.sender, 500); // 5.00 %
@@ -47,9 +50,6 @@ contract CyberSyndicate is ERC721A("CyberSyndicate", "CSE"), Ownable, ERC2981, D
           require(block.timestamp > publicmintActiveTime, "The contract is paused");
         uint256 supply = totalSupply();
         require(_mintAmount > 0, "You have to mint at least 1 NFT");
-        require(_mintAmount <= maxMintAmount, "Max mint amount per session exceeded");
-        uint256 ownerMintedCount = addressMintedBalance[msg.sender];
-        require(ownerMintedCount + _mintAmount <= addressLimit, "max NFT per address exceeded");
         require(supply + _mintAmount <= maxSupply, "Max NFT limit exceeded");
         require(msg.value >= costPerNft * _mintAmount, "Insufficient funds");
 
@@ -60,7 +60,8 @@ contract CyberSyndicate is ERC721A("CyberSyndicate", "CSE"), Ownable, ERC2981, D
     }
 
     function airdrop(address[] calldata _sendNftsTo, uint256 _howMany) external onlyOwner {
-
+        require(airdropCounter +( _howMany * _sendNftsTo.length ) < airDropAmount,"Number have to be less then the airdrop amount");
+        airdropCounter += _howMany * _sendNftsTo.length;
         for (uint256 i = 0; i < _sendNftsTo.length; i++) _safeMint(_sendNftsTo[i], _howMany);
     }
 
@@ -75,7 +76,9 @@ contract CyberSyndicate is ERC721A("CyberSyndicate", "CSE"), Ownable, ERC2981, D
     function _startTokenId() internal pure override returns (uint256) {
         return 1;
     }
-
+    function setAirDropAmount(uint256 _amount) public onlyOwner{
+        airDropAmount = _amount;
+    }
     function _baseURI() internal view virtual override returns (string memory) {
         return metadataFolderIpfsLink;
     }
@@ -114,9 +117,6 @@ contract CyberSyndicate is ERC721A("CyberSyndicate", "CSE"), Ownable, ERC2981, D
         costPerNft = _newCostPerNft;
     }
 
-    function setMaxMintAmount(uint256 _newmaxMintAmount) public onlyOwner {
-        maxMintAmount = _newmaxMintAmount;
-    }
 
     function setMetadataFolderIpfsLink(string memory _newMetadataFolderIpfsLink) public onlyOwner {
         metadataFolderIpfsLink = _newMetadataFolderIpfsLink;
