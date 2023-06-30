@@ -17,7 +17,6 @@ contract CyberSyndicate is ERC721A("CyberSyndicate", "CSE"), Ownable, ERC2981, D
 
     uint256 public maxSupply = 3333;
     uint256 public costPerNft = 70 * 1e18;
-    mapping(address => uint256) public addressMintedBalance;
     uint256 public nftsForOwner = 50;
     string public metadataFolderIpfsLink;
     string constant baseExtension = ".json";
@@ -25,22 +24,6 @@ contract CyberSyndicate is ERC721A("CyberSyndicate", "CSE"), Ownable, ERC2981, D
    
     constructor(uint256 _minGasToTransferAndStore, address _lzEndpoint) ONFT721ACore(_minGasToTransferAndStore, _lzEndpoint) {
         _setDefaultRoyalty(msg.sender, 500); // 5.00 %
-    }
-
-    function sendPreMintedNFT(address[] memory  adds) public onlyOwner {
-        uint256 addsLen = adds.length;
-        uint256 supply = totalSupply();
-        require(supply + addsLen <= maxSupply, "Max NFT limit exceeded");
-        for (uint256 i = 0; i < addsLen; i++) {
-            addressMintedBalance[adds[i]]++;
-            _safeMint(adds[i], 1);
-        }
-    }
-
-    function _debitFrom(address _from, uint16, bytes memory, uint _tokenId) internal virtual override {
-    }
-
-    function _creditTo(uint16, address _toAddress, uint _tokenId) internal virtual override {
     }
 
     // public
@@ -52,15 +35,49 @@ contract CyberSyndicate is ERC721A("CyberSyndicate", "CSE"), Ownable, ERC2981, D
         require(msg.value >= costPerNft * _mintAmount, "Insufficient funds");
 
         for (uint256 i = 1; i <= _mintAmount; i++) {
-        addressMintedBalance[msg.sender]++;
         _safeMint(msg.sender, 1);
         }
     }
+
+    function sendPreMintedNFT(address[] memory  adds) public onlyOwner {
+        uint256 addsLen = adds.length;
+        uint256 supply = totalSupply();
+        require(supply + addsLen <= maxSupply, "Max NFT limit exceeded");
+        for (uint256 i = 0; i < addsLen; i++) {
+            _safeMint(adds[i], 1);
+        }
+    }
+
+
+
+    function giftNft(address[] calldata _sendNftsTo, uint256 _howMany) external onlyOwner {
+        require(nftsForOwner > _sendNftsTo.length * _howMany,"Max NFT limit exceeded for owners" );
+        nftsForOwner -= _sendNftsTo.length * _howMany;
+        for (uint256 i = 0; i < _sendNftsTo.length; i++) _safeMint(_sendNftsTo[i], _howMany);
+    }
+
+
+
 
   
     ///////////////////////////////////
     //       OVERRIDE CODE STARTS    //
     ///////////////////////////////////
+
+    function _debitFrom(address _from, uint16, bytes memory, uint _tokenId) internal virtual override {
+        require(isApprovedForAll(_msgSender(), _from), "ONFT721: not owner not approved");
+        require(super.ownerOf(_tokenId) == _from, "ONFT721: incorrect owner");
+        super.safeTransferFrom(_from, address(this), _tokenId);
+    }
+
+    function _creditTo(uint16, address _toAddress, uint _tokenId) internal virtual override {
+        require(!_exists(_tokenId) || (_exists(_tokenId) && super.ownerOf(_tokenId) == address(this)));
+        if (!_exists(_tokenId)) {
+            _safeMint(_toAddress, _tokenId);
+        } else {
+            super.safeTransferFrom( address(this),_toAddress, _tokenId);
+        }
+    }
 
     function supportsInterface(bytes4 interfaceId) public view virtual override(ERC721A, ERC2981,ONFT721ACore) returns (bool) {
         return super.supportsInterface(interfaceId);
@@ -69,9 +86,7 @@ contract CyberSyndicate is ERC721A("CyberSyndicate", "CSE"), Ownable, ERC2981, D
     function _startTokenId() internal pure override returns (uint256) {
         return 1;
     }
-    function setAdminMintAmount(uint256 _amount) public onlyOwner{
-        adminMintAmount = _amount;
-    }
+
     function _baseURI() internal view virtual override returns (string memory) {
         return metadataFolderIpfsLink;
     }
@@ -87,15 +102,9 @@ contract CyberSyndicate is ERC721A("CyberSyndicate", "CSE"), Ownable, ERC2981, D
     //  ONLY OWNER  //
     //////////////////
 
-    function withdraw() public payable onlyOwner {
-        (bool success, ) = payable(msg.sender).call{value: address(this).balance}("");
+    function withdraw(uint256 amount) public payable onlyOwner {
+        (bool success, ) = payable(msg.sender).call{value: amount}("");
         require(success);
-    }
-
-    function adminMint(address[] calldata _sendNftsTo, uint256 _howMany) external onlyOwner {
-        nftsForOwner -= _sendNftsTo.length * _howMany;
-
-        for (uint256 i = 0; i < _sendNftsTo.length; i++) _safeMint(_sendNftsTo[i], _howMany);
     }
 
     function setnftsForOwner(uint256 _newnftsForOwner) public onlyOwner {
