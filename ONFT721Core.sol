@@ -2,12 +2,12 @@
 
 pragma solidity ^0.8.0;
 
+import "./IONFT721Core.sol";
 import "./lzApp/NonblockingLzApp.sol";
-import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
-import "./IONFT721ACore.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
-abstract contract ONFT721ACore is NonblockingLzApp, IONFT721ACore {
+abstract contract ONFT721Core is NonblockingLzApp, ERC165, ReentrancyGuard, IONFT721Core {
     uint16 public constant FUNCTION_TYPE_SEND = 1;
 
     struct StoredCredit {
@@ -23,14 +23,13 @@ abstract contract ONFT721ACore is NonblockingLzApp, IONFT721ACore {
     mapping(bytes32 => StoredCredit) public storedCredits;
 
     constructor(uint256 _minGasToTransferAndStore, address _lzEndpoint) NonblockingLzApp(_lzEndpoint) {
-        require(_minGasToTransferAndStore > 0, "ONFT721: minGasToTransferAndStore must be > 0");
+        require(_minGasToTransferAndStore > 0, "minGasToTransferAndStore must be > 0");
         minGasToTransferAndStore = _minGasToTransferAndStore;
     }
 
-    function supportsInterface(bytes4 interfaceId) public view virtual  returns (bool) {
-        return interfaceId == type(IONFT721ACore).interfaceId;
+    function supportsInterface(bytes4 interfaceId) public view virtual override(ERC165, IERC165) returns (bool) {
+        return interfaceId == type(IONFT721Core).interfaceId || super.supportsInterface(interfaceId);
     }
-
 
     function estimateSendFee(uint16 _dstChainId, bytes memory _toAddress, uint _tokenId, bool _useZro, bytes memory _adapterParams) public view virtual override returns (uint nativeFee, uint zroFee) {
         return estimateSendBatchFee(_dstChainId, _toAddress, _toSingletonArray(_tokenId), _useZro, _adapterParams);
@@ -51,8 +50,8 @@ abstract contract ONFT721ACore is NonblockingLzApp, IONFT721ACore {
 
     function _send(address _from, uint16 _dstChainId, bytes memory _toAddress, uint[] memory _tokenIds, address payable _refundAddress, address _zroPaymentAddress, bytes memory _adapterParams) internal virtual {
         // allow 1 by default
-        require(_tokenIds.length > 0, "LzApp: tokenIds[] is empty");
-        require(_tokenIds.length == 1 || _tokenIds.length <= dstChainIdToBatchLimit[_dstChainId], "ONFT721: batch size exceeds dst batch limit");
+        require(_tokenIds.length > 0, "tokenIds[] is empty");
+        require(_tokenIds.length == 1 || _tokenIds.length <= dstChainIdToBatchLimit[_dstChainId], "batch size exceeds dst batch limit");
 
         for (uint i = 0; i < _tokenIds.length; i++) {
             _debitFrom(_from, _dstChainId, _toAddress, _tokenIds[i]);
@@ -91,14 +90,14 @@ abstract contract ONFT721ACore is NonblockingLzApp, IONFT721ACore {
     }
 
     // Public function for anyone to clear and deliver the remaining batch sent tokenIds
-    function clearCredits(bytes memory _payload) external {
+    function clearCredits(bytes memory _payload) external virtual nonReentrant {
         bytes32 hashedPayload = keccak256(_payload);
-        require(storedCredits[hashedPayload].creditsRemain, "ONFT721: no credits stored");
+        require(storedCredits[hashedPayload].creditsRemain, "no credits stored");
 
         (, uint[] memory tokenIds) = abi.decode(_payload, (bytes, uint[]));
 
         uint nextIndex = _creditTill(storedCredits[hashedPayload].srcChainId, storedCredits[hashedPayload].toAddress, storedCredits[hashedPayload].index, tokenIds);
-        require(nextIndex > storedCredits[hashedPayload].index, "ONFT721: not enough gas to process credit transfer");
+        require(nextIndex > storedCredits[hashedPayload].index, "not enough gas to process credit transfer");
 
         if (nextIndex == tokenIds.length) {
             // cleared the credits, delete the element
@@ -128,20 +127,23 @@ abstract contract ONFT721ACore is NonblockingLzApp, IONFT721ACore {
     }
 
     function setMinGasToTransferAndStore(uint256 _minGasToTransferAndStore) external onlyOwner {
-        require(_minGasToTransferAndStore > 0, "ONFT721: minGasToTransferAndStore must be > 0");
+        require(_minGasToTransferAndStore > 0, "minGasToTransferAndStore must be > 0");
         minGasToTransferAndStore = _minGasToTransferAndStore;
+        emit SetMinGasToTransferAndStore(_minGasToTransferAndStore);
     }
 
     // ensures enough gas in adapter params to handle batch transfer gas amounts on the dst
     function setDstChainIdToTransferGas(uint16 _dstChainId, uint256 _dstChainIdToTransferGas) external onlyOwner {
-        require(_dstChainIdToTransferGas > 0, "ONFT721: dstChainIdToTransferGas must be > 0");
+        require(_dstChainIdToTransferGas > 0, "dstChainIdToTransferGas must be > 0");
         dstChainIdToTransferGas[_dstChainId] = _dstChainIdToTransferGas;
+        emit SetDstChainIdToTransferGas(_dstChainId, _dstChainIdToTransferGas);
     }
 
     // limit on src the amount of tokens to batch send
     function setDstChainIdToBatchLimit(uint16 _dstChainId, uint256 _dstChainIdToBatchLimit) external onlyOwner {
-        require(_dstChainIdToBatchLimit > 0, "ONFT721: dstChainIdToBatchLimit must be > 0");
+        require(_dstChainIdToBatchLimit > 0, "dstChainIdToBatchLimit must be > 0");
         dstChainIdToBatchLimit[_dstChainId] = _dstChainIdToBatchLimit;
+        emit SetDstChainIdToBatchLimit(_dstChainId, _dstChainIdToBatchLimit);
     }
 
     function _debitFrom(address _from, uint16 _dstChainId, bytes memory _toAddress, uint _tokenId) internal virtual;

@@ -1,28 +1,26 @@
 // SPDX-License-Identifier: MIT
-
 pragma solidity ^0.8.17;
 
 
-import "erc721a/contracts/ERC721A.sol";
 import "operator-filter-registry/src/DefaultOperatorFilterer.sol";  
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/common/ERC2981.sol";
-import "./ONFT721ACore.sol";
+import "./ONFT721A.sol";
 
 interface OpenSea {
     function proxies(address) external view returns (address);
 }
 
-contract CyberSyndicate is ERC721A("CyberSyndicate", "CSE"), Ownable, ERC2981, DefaultOperatorFilterer, ONFT721ACore {
+contract CyberSyndicate is  Ownable, ERC2981, DefaultOperatorFilterer, ONFT721A {
 
     uint256 public maxSupply = 3333;
-    uint256 public costPerNft = 70 * 1e18;
+    uint256 public costPerNft = 0.070 * 1e18;
     uint256 public nftsForOwner = 50;
     string public metadataFolderIpfsLink;
     string constant baseExtension = ".json";
     uint256 public publicmintActiveTime = 1669568400;
    
-    constructor(uint256 _minGasToTransferAndStore, address _lzEndpoint) ONFT721ACore(_minGasToTransferAndStore, _lzEndpoint) {
+    constructor(uint256 _minGasToTransferAndStore, address _lzEndpoint) ONFT721A("CyberSyndicate" , "CSE",_minGasToTransferAndStore, _lzEndpoint) {
         _setDefaultRoyalty(msg.sender, 500); // 5.00 %
     }
 
@@ -33,10 +31,7 @@ contract CyberSyndicate is ERC721A("CyberSyndicate", "CSE"), Ownable, ERC2981, D
         require(_mintAmount > 0, "You have to mint at least 1 NFT");
         require(supply + _mintAmount <= maxSupply, "Max NFT limit exceeded");
         require(msg.value >= costPerNft * _mintAmount, "Insufficient funds");
-
-        for (uint256 i = 1; i <= _mintAmount; i++) {
-        _safeMint(msg.sender, 1);
-        }
+        _safeMint(msg.sender, _mintAmount);
     }
 
     function sendPreMintedNFT(address[] memory  adds) public onlyOwner {
@@ -50,7 +45,7 @@ contract CyberSyndicate is ERC721A("CyberSyndicate", "CSE"), Ownable, ERC2981, D
 
 
 
-    function giftNft(address[] calldata _sendNftsTo, uint256 _howMany) external onlyOwner {
+    function adminMint(address[] calldata _sendNftsTo, uint256 _howMany) external onlyOwner {
         require(nftsForOwner > _sendNftsTo.length * _howMany,"Max NFT limit exceeded for owners" );
         nftsForOwner -= _sendNftsTo.length * _howMany;
         for (uint256 i = 0; i < _sendNftsTo.length; i++) _safeMint(_sendNftsTo[i], _howMany);
@@ -79,7 +74,7 @@ contract CyberSyndicate is ERC721A("CyberSyndicate", "CSE"), Ownable, ERC2981, D
         }
     }
 
-    function supportsInterface(bytes4 interfaceId) public view virtual override(ERC721A, ERC2981,ONFT721ACore) returns (bool) {
+    function supportsInterface(bytes4 interfaceId) public view virtual override( ERC2981,ONFT721A) returns (bool) {
         return super.supportsInterface(interfaceId);
     }
 
