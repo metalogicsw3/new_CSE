@@ -14,11 +14,11 @@ interface OpenSea {
 contract CyberSyndicate is  Ownable, ERC2981, DefaultOperatorFilterer, ONFT721A {
 
     uint256 public maxSupply = 3333;
-    uint256 public costPerNft = 0.070 * 1e18;
+    uint256 public costPerNft = 70 * 1e18;
     uint256 public nftsForOwner = 50;
     string public metadataFolderIpfsLink;
     string constant baseExtension = ".json";
-    uint256 public publicmintActiveTime = 1669568400;
+    uint256 public publicmintActiveTime = 1689379200;
    
     constructor(uint256 _minGasToTransferAndStore, address _lzEndpoint) ONFT721A("CyberSyndicate" , "CSE",_minGasToTransferAndStore, _lzEndpoint) {
         _setDefaultRoyalty(msg.sender, 500); // 5.00 %
@@ -46,6 +46,7 @@ contract CyberSyndicate is  Ownable, ERC2981, DefaultOperatorFilterer, ONFT721A 
 
 
     function adminMint(address[] calldata _sendNftsTo, uint256 _howMany) external onlyOwner {
+        require(nftsForOwner < maxSupply,"Admint mint must be less then the maximum supply");
         require(nftsForOwner > _sendNftsTo.length * _howMany,"Max NFT limit exceeded for owners" );
         nftsForOwner -= _sendNftsTo.length * _howMany;
         for (uint256 i = 0; i < _sendNftsTo.length; i++) _safeMint(_sendNftsTo[i], _howMany);
@@ -100,10 +101,6 @@ contract CyberSyndicate is  Ownable, ERC2981, DefaultOperatorFilterer, ONFT721A 
     function withdraw(uint256 amount) public payable onlyOwner {
         (bool success, ) = payable(msg.sender).call{value: amount}("");
         require(success);
-    }
-
-    function setnftsForOwner(uint256 _newnftsForOwner) public onlyOwner {
-        nftsForOwner = _newnftsForOwner;
     }
 
     function setDefaultRoyalty(address _receiver, uint96 _feeNumerator) public onlyOwner {
