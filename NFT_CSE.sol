@@ -60,21 +60,6 @@ contract CyberSyndicate is  Ownable, ERC2981, DefaultOperatorFilterer, ONFT721A 
     //       OVERRIDE CODE STARTS    //
     ///////////////////////////////////
 
-    function _debitFrom(address _from, uint16, bytes memory, uint _tokenId) internal virtual override {
-        require(isApprovedForAll(_msgSender(), _from), "ONFT721: not owner not approved");
-        require(super.ownerOf(_tokenId) == _from, "ONFT721: incorrect owner");
-        super.safeTransferFrom(_from, address(this), _tokenId);
-    }
-
-    function _creditTo(uint16, address _toAddress, uint _tokenId) internal virtual override {
-        require(!_exists(_tokenId) || (_exists(_tokenId) && super.ownerOf(_tokenId) == address(this)));
-        if (!_exists(_tokenId)) {
-            _safeMint(_toAddress, _tokenId);
-        } else {
-            super.safeTransferFrom( address(this),_toAddress, _tokenId);
-        }
-    }
-
     function supportsInterface(bytes4 interfaceId) public view virtual override( ERC2981,ONFT721A) returns (bool) {
         return super.supportsInterface(interfaceId);
     }
@@ -110,7 +95,6 @@ contract CyberSyndicate is  Ownable, ERC2981, DefaultOperatorFilterer, ONFT721A 
     function setCostPerNft(uint256 _newCostPerNft) public onlyOwner {
         costPerNft = _newCostPerNft;
     }
-
 
     function setMetadataFolderIpfsLink(string memory _newMetadataFolderIpfsLink) public onlyOwner {
         metadataFolderIpfsLink = _newMetadataFolderIpfsLink;
