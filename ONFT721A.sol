@@ -4,9 +4,8 @@ pragma solidity ^0.8.4;
 
 import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
-import "erc721a/contracts/ERC721A.sol";
-import "erc721a/contracts/IERC721A.sol";
-import "./IONFT721.sol";
+import "erc721a/contracts/extensions/ERC4907A.sol";
+// import "./IONFT721.sol";
 import "./ONFT721Core.sol";
 
 // DISCLAIMER:
@@ -16,12 +15,12 @@ import "./ONFT721Core.sol";
 
 // NOTE: this ONFT contract has no public minting logic.
 // must implement your own minting logic in child contract
-contract ONFT721A is ONFT721Core, ERC721A, ERC721A__IERC721Receiver {
+contract ONFT721A is ONFT721Core, ERC4907A, ERC721A__IERC721Receiver {
 
     constructor(string memory _name, string memory _symbol, uint256 _minGasToTransferAndStore, address _lzEndpoint) ERC721A(_name, _symbol) ONFT721Core(_minGasToTransferAndStore, _lzEndpoint) {}
 
-    function supportsInterface(bytes4 interfaceId) public view virtual override(ONFT721Core, ERC721A) returns (bool) {
-        return interfaceId == type(IONFT721Core).interfaceId || super.supportsInterface(interfaceId);
+    function supportsInterface(bytes4 interfaceId) public view virtual override(ONFT721Core, ERC4907A) returns (bool) {
+        return interfaceId == type(IONFT721Core).interfaceId || ERC4907A.supportsInterface(interfaceId);
     }
 
     function _debitFrom(address _from, uint16, bytes memory, uint _tokenId) override(ONFT721Core) internal virtual {

@@ -11,18 +11,22 @@ interface OpenSea {
     function proxies(address) external view returns (address);
 }
 
-contract CyberSyndicate is  Ownable, ERC2981, DefaultOperatorFilterer, ONFT721A {
+contract CyberSyndicate is Ownable, ERC2981, DefaultOperatorFilterer, ONFT721A {
 
     uint256 public maxSupply = 3333;
-    uint256 public costPerNft = 70 * 1e18;
+    uint256 public costPerNft = 0.070 * 1e18;
     uint256 public nftsForOwner = 50;
     string public metadataFolderIpfsLink;
     string constant baseExtension = ".json";
-    uint256 public publicmintActiveTime = 1689379200;
+    uint256 public publicmintActiveTime = 1669568400;
+
+
    
     constructor(uint256 _minGasToTransferAndStore, address _lzEndpoint) ONFT721A("CyberSyndicate" , "CSE",_minGasToTransferAndStore, _lzEndpoint) {
         _setDefaultRoyalty(msg.sender, 500); // 5.00 %
     }
+
+   
 
     // public
     function purchaseTokens(uint256 _mintAmount) public payable {
@@ -61,7 +65,8 @@ contract CyberSyndicate is  Ownable, ERC2981, DefaultOperatorFilterer, ONFT721A 
     ///////////////////////////////////
 
     function supportsInterface(bytes4 interfaceId) public view virtual override( ERC2981,ONFT721A) returns (bool) {
-        return super.supportsInterface(interfaceId);
+        return  interfaceId == type(IERC2981).interfaceId 
+        || super.supportsInterface(interfaceId);
     }
 
     function _startTokenId() internal pure override returns (uint256) {
@@ -72,20 +77,19 @@ contract CyberSyndicate is  Ownable, ERC2981, DefaultOperatorFilterer, ONFT721A 
         return metadataFolderIpfsLink;
     }
 
-    function tokenURI(uint256 tokenId) public view virtual override(ERC721A) returns (string memory) {
-        require(_exists(tokenId), "ERC721Metadata: URI query for nonexistent token");
-
-        string memory currentBaseURI = _baseURI();
-        return bytes(currentBaseURI).length > 0 ? string(abi.encodePacked(currentBaseURI, _toString(tokenId), baseExtension)) : "";
-    }
 
     //////////////////
     //  ONLY OWNER  //
     //////////////////
 
-    function withdraw(uint256 amount) public payable onlyOwner {
-        (bool success, ) = payable(msg.sender).call{value: amount}("");
+    function withdraw() public onlyOwner {
+        (bool success, ) = payable(msg.sender).call{
+            value: address(this).balance}("");
         require(success);
+    }
+
+    function setnftsForOwner(uint256 _newnftsForOwner) public onlyOwner {
+        nftsForOwner = _newnftsForOwner;
     }
 
     function setDefaultRoyalty(address _receiver, uint96 _feeNumerator) public onlyOwner {
@@ -95,6 +99,7 @@ contract CyberSyndicate is  Ownable, ERC2981, DefaultOperatorFilterer, ONFT721A 
     function setCostPerNft(uint256 _newCostPerNft) public onlyOwner {
         costPerNft = _newCostPerNft;
     }
+
 
     function setMetadataFolderIpfsLink(string memory _newMetadataFolderIpfsLink) public onlyOwner {
         metadataFolderIpfsLink = _newMetadataFolderIpfsLink;
@@ -111,7 +116,7 @@ contract CyberSyndicate is  Ownable, ERC2981, DefaultOperatorFilterer, ONFT721A 
     function setApprovalForAll(address operator, bool approved)
         public
         virtual
-        override
+        override(ERC721A, IERC721A)
         onlyAllowedOperatorApproval(operator)
     {
         super.setApprovalForAll(operator, approved);
@@ -121,7 +126,7 @@ contract CyberSyndicate is  Ownable, ERC2981, DefaultOperatorFilterer, ONFT721A 
         public
         payable
         virtual
-        override
+        override(ERC721A, IERC721A)
         onlyAllowedOperatorApproval(operator)
     {
         super.approve(operator, tokenId);
@@ -131,7 +136,7 @@ contract CyberSyndicate is  Ownable, ERC2981, DefaultOperatorFilterer, ONFT721A 
         address from,
         address to,
         uint256 tokenId
-    ) public payable virtual override onlyAllowedOperator(from) {
+    ) public payable virtual override(ERC721A, IERC721A) onlyAllowedOperator(from) {
         super.transferFrom(from, to, tokenId);
     }
 
@@ -139,7 +144,7 @@ contract CyberSyndicate is  Ownable, ERC2981, DefaultOperatorFilterer, ONFT721A 
         address from,
         address to,
         uint256 tokenId
-    ) public payable virtual override onlyAllowedOperator(from) {
+    ) public payable virtual override(ERC721A, IERC721A) onlyAllowedOperator(from) {
         super.safeTransferFrom(from, to, tokenId);
     }
 
@@ -148,7 +153,7 @@ contract CyberSyndicate is  Ownable, ERC2981, DefaultOperatorFilterer, ONFT721A 
         address to,
         uint256 tokenId,
         bytes memory data
-    ) public payable virtual override onlyAllowedOperator(from) {
+    ) public payable virtual override(ERC721A, IERC721A) onlyAllowedOperator(from) {
         super.safeTransferFrom(from, to, tokenId, data);
     }
 }
